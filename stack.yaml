@@ -11,6 +11,7 @@ packages:
 extra-deps:
 - HSH-2.1.2
 - binary-generic-0.2.1
+- binary-0.8.2.1
 
 # Override default flag values for local packages and extra-deps
 flags: {}
