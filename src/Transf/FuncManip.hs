@@ -1,3 +1,7 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE RecordWildCards #-}
+
 module Transf.FuncManip where
 
 import Lang.Php
@@ -11,10 +15,13 @@ transfs = [
   -=- (\ [oldF, newF] -> lexPass $ renameFunc oldF newF),
   "get-all-defd-funcs" -:- ftype -?-
   "Get a list of all defined functions."
-  -=- (\ [] -> lexPass $ getAllDefdFuncs),
+  -=- (\ [] -> lexPass getAllDefdFuncs),
   "kill-func-arg <func-name> <arg-n-starting-at-1>" -:- ftype -?-
   "Kill the nth arg of all callsites. OO func-name not yet supported."
   -=- (\ [f, n] -> lexPass . killFuncArg f $ read n),
+  "abstract-mysql" -:- ftype -?-
+  "Replace all calls to mysql_query with calls to doSQL. Print list of calls"
+  -=- argless (lexPass abstractMysql),
   "make-public-explicit" -:- ftype -?-
   "Add \"public\" to class functions without an explicit access keyword."
   -=- (\ [] -> lexPass makePublicExplicit)]
@@ -55,3 +62,42 @@ makePublicExplicit = modAll $ \ cStmt -> case cStmt of
     else pure $ CStmtFuncDef (("public", [WS " "]):pre) f
   _ -> transfNothing
 
+abstractMysql :: Ast -> Transformed Ast
+abstractMysql = modAll $ \case
+  MysqlQuery query -> Transformed{..}
+    where
+      infoLines = ["Abstract: " ++ show query]
+      transfResult = pure $ DoSQLQuery query
+  _                -> transfNothing
+
+pattern MysqlQuery query = ROnlyValFunc (Right (Const [] "mysql_query")) []
+    (Right
+      [ WSCap
+        { wsCapPre = []
+        , wsCapMain = query
+        , wsCapPost = []
+        }
+        ])
+
+pattern DoSQLQuery query = ROnlyValFunc (Right (Const [] "doSQL")) []
+    (Right
+      [ WSCap
+        { wsCapPre = []
+        , wsCapMain = query
+        , wsCapPost = []
+        }
+        , DatabaseName "db"
+        , NoDisplaySQL
+        ])
+
+pattern DatabaseName name = WSCap
+        { wsCapPre = [WS " "]
+        , wsCapMain = Left (ExprRVal (RValLRVal (LRValVar (DynConst [] (Var name [])))))
+        , wsCapPost = []
+        }
+
+pattern NoDisplaySQL = WSCap
+        { wsCapPre = [WS " "]
+        , wsCapMain = Left (ExprStrLit (StrLit "\"no\""))
+        , wsCapPost = [WS " "]
+        }
