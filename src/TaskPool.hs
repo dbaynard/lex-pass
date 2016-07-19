@@ -3,7 +3,7 @@ module TaskPool where
 import Control.Exception
 import Control.Concurrent
 import Control.Monad
-import Prelude hiding (catch)
+import Prelude
 
 type TaskChan a = Chan (Maybe (IO a))
 
@@ -25,6 +25,6 @@ taskPool n tasks = do
   q <- newChan
   doneChan <- newChan
   tids <- replicateM n . forkIO $ worker q doneChan
-  mapM_ (writeChan q) $ map Just tasks ++ replicate n Nothing
+  writeList2Chan q $ map Just tasks ++ replicate n Nothing
   replicateM_ n $ readChan doneChan
 

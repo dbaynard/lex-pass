@@ -9,36 +9,86 @@ synopsis:
     to minimize conflicts in a rapidly changing development
     environment. Currently PHP is supported, with some extensions.
 build-type:    Simple
-cabal-version: >= 1.6
+cabal-version: >= 1.10
 
 flag test-only
     description: Build test executable instead of main program
     default:     False
 
+library
+  hs-source-dirs:      src
+  ghc-options:         -Wall -threaded -O2
+  exposed-modules:     App
+                       Common
+                       CodeGen.Transf
+                       Config
+                       Data.Intercal
+                       Data.List.NonEmpty
+                       Lang.Php
+                       Lang.Php.Ast
+                       Lang.Php.Ast.ArgList
+                       Lang.Php.Ast.Common
+                       Lang.Php.Ast.Lex
+                       Lang.Php.Ast.LexWS
+                       Lang.Php.Ast.Stmt
+                       Lang.Php.Ast.StmtParse
+                       Lang.Php.Ast.StmtTypes
+                       Lang.Php.Ast.StmtUnparse
+                       Lang.Php.Ast.WS
+                       Lang.Php.Transf
+                       LexPassUtil
+                       Options
+                       Parse
+                       PrettyPrint
+                       TaskPool
+                       Transf.AntiPattern
+                       Transf.FuncManip
+                       Transf.Id
+                       TransfUtil
+                       Unparse
+                       Util
+  build-depends:       base >= 4.7 && < 5
+                     , aeson
+                     , binary
+                     , binary-generic
+                     , bytestring
+                     , containers
+                     , directory
+                     , filepath
+                     , GenericPretty
+                     , HSH
+                     , MissingH
+                     , mtl
+                     , parsec
+                     , process
+                     , split
+                     , string-conv
+                     , syb
+  default-language:    Haskell2010
+
 executable lex-pass
     if flag(test-only)
         buildable: False
-    hs-source-dirs: src
+    hs-source-dirs: app
     main-is: Main.hs
-    build-depends:
-        base
-      , binary
-      , binary-generic
-      , bytestring
-      , containers
-      , directory
-      , filepath
-      , GenericPretty
-      , HSH
-      , MissingH
-      , mtl
-      , parsec
-      , process
-      , syb
+    build-depends:     base >= 4.7 && < 5
+                     , lex-pass
     ghc-options: -threaded -O2
+  default-language:    Haskell2010
 
-executable lex-pass-test
+executable lex-pass-testexe
     if !flag(test-only)
         buildable: False
-    hs-source-dirs: src
-    main-is: Lang/Php/Ast/Test.hs
+    hs-source-dirs: test
+    main-is: Lang/Php/AstSpec.hs
+  default-language:    Haskell2010
+
+test-suite lex-pass-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base
+                     , hspec
+                     , lex-pass
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010

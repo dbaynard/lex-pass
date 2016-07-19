@@ -1,15 +1,17 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
 module Data.Intercal where
 
 import Control.Arrow
 import Control.Applicative
 import Control.Monad
-import Data.Binary
+import Data.Binary ()
 import Data.Data
 import Prelude hiding (concatMap, map)
 import qualified Prelude
+import GHC.Generics
+import Data.Aeson
 
 import Common
 import Parse
@@ -17,7 +19,7 @@ import Unparse
 import Text.PrettyPrint.GenericPretty
 
 data Intercal a b = Intercal a b (Intercal a b) | Interend a
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, Generic1, ToJSON, FromJSON)
 
 intercalParser :: Parser a -> Parser b -> Parser (Intercal a b)
 intercalParser a b = do
@@ -25,7 +27,7 @@ intercalParser a b = do
   bResMb <- optionMaybe b
   case bResMb of
     Nothing -> return $ Interend aRes
-    Just bRes -> liftM (Intercal aRes bRes) $ intercalParser a b
+    Just bRes -> Intercal aRes bRes <$> intercalParser a b
 
 instance (Parse a, Parse b) => Parse (Intercal a b) where
   parse = intercalParser parse parse
@@ -43,8 +45,8 @@ concatMapM :: (Monad m) => (a -> b -> a -> m (Intercal a b)) ->
 concatMapM _f i@(Interend _) = return i
 concatMapM f (Intercal x1 y (Interend x2)) = f x1 y x2
 concatMapM f (Intercal x1 y (Intercal x2 y2 rest)) = do
-  (fResMain, fResEnd) <- liftM breakEnd $ f x1 y x2
-  liftM (prepend fResMain) . concatMapM f $ Intercal fResEnd y2 rest
+  (fResMain, fResEnd) <- breakEnd <$> f x1 y x2
+  fmap (prepend fResMain) . concatMapM f $ Intercal fResEnd y2 rest
 
 concatMap :: (a -> b -> a -> Intercal a b) -> Intercal a b -> Intercal a b
 concatMap _f i@(Interend _) = i

@@ -3,29 +3,20 @@
 
 module Lang.Php.Ast.Common
     (
-      module Data.Binary
-    , module Data.Char
-    , module Data.Data
-    , module Data.List
-    , module Data.Maybe
-
-    , module Common
-    , module Parse
-    , module Unparse
-    , module Lang.Php.Ast.WS
+      module X
     ) where
 
-import Data.Binary
+import Data.Binary as X
 import Data.Binary.Generic
-import Data.Char
-import Data.Data hiding (Infix, Prefix)
-import Data.List hiding (uncons)
-import Data.Maybe
+import Data.Char as X
+import Data.Data as X hiding (Infix, Prefix)
+import Data.List as X hiding (uncons)
+import Data.Maybe as X
 
-import Common
-import Parse
-import Unparse
-import Lang.Php.Ast.WS
+import Common as X
+import Parse as X
+import Unparse as X
+import Lang.Php.Ast.WS as X
 
 instance (Data a) => Binary a where
   get = getGeneric

@@ -1,15 +1,16 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric,DeriveAnyClass #-}
 
 module Lang.Php.Ast.Lex where
 
 import qualified Data.Set as Set
 import Text.PrettyPrint.GenericPretty
+import Data.Aeson
 
 import Lang.Php.Ast.Common
 
 data StrLit = StrLit String
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 instance Parse StrLit where
   parse = StrLit <$> (
@@ -46,7 +47,7 @@ backticksParser :: Parser String
 backticksParser = liftM2 (:) (char '`') (strLitRestParserCurly '`' False)
 
 data NumLit = NumLit String
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 instance Parse NumLit where
   -- could be tighter
@@ -61,7 +62,7 @@ instance Unparse NumLit where
   unparse (NumLit a) = a
 
 data HereDoc = HereDoc String
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 wsNoNLParser :: Parser String
 wsNoNLParser = many (satisfy (\ x -> isSpace x && x /= '\n'))
@@ -124,7 +125,246 @@ stringCI = mapM charCI
 str :: String -> Parser String
 str = string
 
+nc :: String -> String -> GenParser Char () String
 nc t cs = try $ str t <* notFollowedBy (oneOf cs)
+
+tokNotP :: GenParser Char () String
+tokNEP :: GenParser Char () String
+tokNIP :: GenParser Char () String
+tokDollarP :: Parser String
+tokModP :: GenParser Char () String
+tokModByP :: GenParser Char () String
+tokAmpP :: GenParser Char () String
+tokAndP :: GenParser Char () String
+tokBitAndByP :: GenParser Char () String
+tokLParenP :: Parser String
+tokRParenP :: Parser String
+tokMulP :: GenParser Char () String
+tokMulByP :: GenParser Char () String
+tokPlusP :: GenParser Char () String
+tokIncrP :: GenParser Char () String
+tokPlusByP :: GenParser Char () String
+tokCommaP :: Parser String
+tokMinusP :: GenParser Char () String
+tokDecrP :: GenParser Char () String
+tokMinusByP :: GenParser Char () String
+tokArrowP :: GenParser Char () String
+tokConcatP :: GenParser Char () String
+tokConcatByP :: GenParser Char () String
+tokDivP :: GenParser Char () String
+tokDivByP :: GenParser Char () String
+tokColonP :: GenParser Char () String
+tokDubColonP :: GenParser Char () String
+tokLTP :: GenParser Char () String
+tokShiftLP :: GenParser Char () String
+tokHereDocP :: GenParser Char () String
+tokShiftLByP :: GenParser Char () String
+tokLEP :: GenParser Char () String
+tokNEOldP :: GenParser Char () String
+tokOpenPhpP :: GenParser Char () ()
+tokEqualsP :: GenParser Char () String
+tokEQP :: GenParser Char () String
+tokIDP :: GenParser Char () String
+tokDubArrowP :: GenParser Char () String
+tokGTP :: GenParser Char () String
+tokGEP :: GenParser Char () String
+tokShiftRP :: GenParser Char () String
+tokShiftRByP :: GenParser Char () String
+tokQMarkP :: GenParser Char () String
+tokClosePhpP :: GenParser Char () String
+tokLBracketP :: Parser String
+tokRBracketP :: Parser String
+tokXorP :: GenParser Char () String
+tokXorByP :: GenParser Char () String
+tokLBraceP :: Parser String
+tokBitOrP :: GenParser Char () String
+tokBitOrByP :: GenParser Char () String
+tokOrP :: GenParser Char () String
+tokRBraceP :: Parser String
+tokBitNotP :: Parser String
+tokAbstractP :: GenParser Char () String
+tokAndWdP :: GenParser Char () String
+tokArrayP :: GenParser Char () String
+tokAsP :: GenParser Char () String
+tokBreakP :: GenParser Char () String
+tokCaseP :: GenParser Char () String
+tokCatchP :: GenParser Char () String
+tokClassP :: GenParser Char () String
+tokCloneP :: GenParser Char () String
+tokConstP :: GenParser Char () String
+tokContinueP :: GenParser Char () String
+tokDeclareP :: GenParser Char () String
+tokDefaultP :: GenParser Char () String
+tokDieP :: GenParser Char () String
+tokDoP :: GenParser Char () String
+tokEchoP :: GenParser Char () String
+tokElseifP :: GenParser Char () String
+tokElseP :: GenParser Char () String
+tokEmptyP :: GenParser Char () String
+tokEnddeclareP :: GenParser Char () String
+tokEndforeachP :: GenParser Char () String
+tokEndforP :: GenParser Char () String
+tokEndifP :: GenParser Char () String
+tokEndswitchP :: GenParser Char () String
+tokEndwhileP :: GenParser Char () String
+tokEvalP :: GenParser Char () String
+tokExitP :: GenParser Char () String
+tokExtendsP :: GenParser Char () String
+tokFinalP :: GenParser Char () String
+tokForP :: GenParser Char () String
+tokForeachP :: GenParser Char () String
+tokFunctionP :: GenParser Char () String
+tokGlobalP :: GenParser Char () String
+tokGotoP :: GenParser Char () String
+tokIfP :: GenParser Char () String
+tokImplementsP :: GenParser Char () String
+tokInstanceofP :: GenParser Char () String
+tokInterfaceP :: GenParser Char () String
+tokIssetP :: GenParser Char () String
+tokListP :: GenParser Char () String
+tokNamespaceP :: GenParser Char () String
+tokNewP :: GenParser Char () String
+tokOrWdP :: GenParser Char () String
+tokPrintP :: GenParser Char () String
+tokPrivateP :: GenParser Char () String
+tokProtectedP :: GenParser Char () String
+tokPublicP :: GenParser Char () String
+tokReturnP :: GenParser Char () String
+tokStaticP :: GenParser Char () String
+tokSwitchP :: GenParser Char () String
+tokThrowP :: GenParser Char () String
+tokTryP :: GenParser Char () String
+tokUnsetP :: GenParser Char () String
+tokUseP :: GenParser Char () String
+tokVarP :: GenParser Char () String
+tokWhileP :: GenParser Char () String
+tokXorWdP :: GenParser Char () String
+tokCategoryP :: GenParser Char () String
+tokChildrenP :: GenParser Char () String
+tokAttributeP :: GenParser Char () String
+tokNot :: String
+tokNE :: String
+tokNI :: String
+tokDollar :: String
+tokMod :: String
+tokModBy :: String
+tokAmp :: String
+tokAnd :: String
+tokBitAndBy :: String
+tokLParen :: String
+tokRParen :: String
+tokMul :: String
+tokMulBy :: String
+tokPlus :: String
+tokIncr :: String
+tokPlusBy :: String
+tokComma :: String
+tokMinus :: String
+tokDecr :: String
+tokMinusBy :: String
+tokArrow :: String
+tokConcat :: String
+tokConcatBy :: String
+tokDiv :: String
+tokDivBy :: String
+tokColon :: String
+tokDubColon :: String
+tokSemi :: String
+tokSemiP :: Parser String
+tokLT :: String
+tokShiftL :: String
+tokHereDoc :: String
+tokShiftLBy :: String
+tokLE :: String
+tokNEOld :: String
+tokOpenPhp :: String
+tokOpenPhpEcho :: String
+tokEquals :: String
+tokEQ :: String
+tokID :: String
+tokDubArrow :: String
+tokGT :: String
+tokGE :: String
+tokShiftR :: String
+tokShiftRBy :: String
+tokQMark :: String
+tokClosePhp :: String
+tokAt :: String
+tokAtP :: Parser String
+tokLBracket :: String
+tokRBracket :: String
+tokXor :: String
+tokXorBy :: String
+tokLBrace :: String
+tokBitOr :: String
+tokBitOrBy :: String
+tokOr :: String
+tokRBrace :: String
+tokBitNot :: String
+tokAbstract :: String
+tokAndWd :: String
+tokArray :: String
+tokAs :: String
+tokBreak :: String
+tokCase :: String
+tokCatch :: String
+tokClass :: String
+tokClone :: String
+tokConst :: String
+tokContinue :: String
+tokDeclare :: String
+tokDefault :: String
+tokDie :: String
+tokDo :: String
+tokEcho :: String
+tokElse :: String
+tokElseif :: String
+tokEmpty :: String
+tokEnddeclare :: String
+tokEndfor :: String
+tokEndforeach :: String
+tokEndif :: String
+tokEndswitch :: String
+tokEndwhile :: String
+tokEval :: String
+tokExit :: String
+tokExtends :: String
+tokFinal :: String
+tokFor :: String
+tokForeach :: String
+tokFunction :: String
+tokGlobal :: String
+tokGoto :: String
+tokIf :: String
+tokImplements :: String
+tokInclude :: String
+tokIncludeOnce :: String
+tokInstanceof :: String
+tokInterface :: String
+tokIsset :: String
+tokList :: String
+tokNamespace :: String
+tokNew :: String
+tokOrWd :: String
+tokPrint :: String
+tokPrivate :: String
+tokProtected :: String
+tokPublic :: String
+tokRequire :: String
+tokRequireOnce :: String
+tokReturn :: String
+tokStatic :: String
+tokSwitch :: String
+tokThrow :: String
+tokTry :: String
+tokUnset :: String
+tokUse :: String
+tokVar :: String
+tokWhile :: String
+tokXorWd :: String
+tokCategory :: String
+tokChildren :: String
+tokAttribute :: String
 
 -- ugly, redo this.. maybe have a minimal lexer stage after all?
 tokNot = "!"
@@ -368,11 +608,13 @@ reservedWords = Set.fromList [
   tokWhile,
   tokXorWd]
 
+identCI :: String -> GenParser Char () String
 identCI w = try $ do
   i <- genIdentifierParser
   when (map toLower i /= w) $ fail ""
   return i
 
+identsCI :: Foldable t => t String -> GenParser Char () String
 identsCI w = try $ do
   i <- genIdentifierParser
   when (map toLower i `notElem` w) $ fail ""

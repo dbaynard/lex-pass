@@ -1,9 +1,19 @@
-module Main where
+module Lang.Php.AstSpec (main, spec) where
 
+import Test.Hspec
 import System.Directory
 import System.FilePath
 
 import Lang.Php.Ast
+
+main :: IO ()
+main = hspec spec
+
+spec :: Spec
+spec = do
+    describe "Lang.Php.Ast" $ do
+        undefined
+
 
 assertUnchanged :: String -> IO ()
 assertUnchanged s = do
@@ -19,7 +29,7 @@ assertUnchanged s = do
         show ast ++ "\n ->\n" ++ show s'
 
 testDir :: FilePath
-testDir = "src/Lang/Php/Ast/Test"
+testDir = "test"
 
 main :: IO ()
 main = do
