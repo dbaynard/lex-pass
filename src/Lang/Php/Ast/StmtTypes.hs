@@ -1,9 +1,10 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
 module Lang.Php.Ast.StmtTypes where
 
 import Text.PrettyPrint.GenericPretty
+import Data.Aeson
 
 import qualified Data.Intercal as IC
 import qualified Data.List.NonEmpty as NE
@@ -29,53 +30,53 @@ import Lang.Php.Ast.Lex
 -- refactoring.
 
 data Val = ValLOnlyVal LOnlyVal | ValROnlyVal ROnlyVal | ValLRVal LRVal
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data LVal = LValLOnlyVal LOnlyVal | LValLRVal LRVal
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data RVal = RValROnlyVal ROnlyVal | RValLRVal LRVal
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data Var =
   -- In php, indexing is oddly coupled very tightly with being a non-dyn var.
-  Var        String [((WS, (Bool, WSCap Expr)))] | -- "$a", "$a[0]", "$a[0][0]"
+  Var        String [(WS, (Bool, WSCap Expr))] | -- "$a", "$a[0]", "$a[0][0]"
   VarDyn     WS Var          | -- "$$a"
                                -- note: "$$a[0]()->a" == "${$a[0]}()->a"
   VarDynExpr WS (WSCap Expr)   -- "${$a . '_'}"
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data DynConst = DynConst [(String, WS2)] Var -- "a::$a"
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data LRVal =
   LRValVar     DynConst |
   LRValInd     RVal WS (WSCap Expr) | -- "$a->a[0]"
   LRValMemb    RVal WS2 Memb | -- $a->a
   LRValStaMemb RVal WS2 Memb -- $a::a
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data LOnlyVal =
   LOnlyValList   WS (Either WS [Either WS (WSCap LVal)]) |
   LOnlyValAppend LVal WS2                 | -- "$a[]"
   LOnlyValInd    LOnlyVal WS (WSCap Expr) | -- "$a[][0]"
   LOnlyValMemb   LOnlyVal WS2 Memb          -- "$a[]->a"
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data Const = Const [(String, WS2)] String -- "a::a"
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data ROnlyVal =
   ROnlyValConst Const |
   -- "a()", "$a()"
   ROnlyValFunc  (Either LRVal Const) WS (Either WS [WSCap (Either Expr LVal)])
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data Memb =
   MembStr  String |
   MembVar  Var    |
   MembExpr (WSCap Expr)
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 --
 -- Expr's
@@ -112,37 +113,37 @@ data Expr =
   ExprTernaryIf TernaryIf |
   -- FIXME: this fb extension should be separated to a superclass-like Lang?
   ExprXml       Xml
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data Xml = Xml String
   (IC.Intercal WS (String, Maybe (WS2, Either StrLit (WSCap Expr))))
   (Maybe ([Either XmlLitOrExpr Xml], Bool))
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data XmlLitOrExpr = XmlLit String | XmlExpr (WSCap Expr)
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data BinOp = BAnd | BAndWd | BEQ | BGE | BGT | BID | BLE | BLT | BNE |
   -- <> has different precedence than !=
   BNEOld | BNI | BOr | BOrWd | BXorWd | BByable BinOpBy
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data BinOpBy = BBitAnd | BBitOr | BConcat | BDiv | BMinus | BMod | BMul |
   BPlus | BShiftL | BShiftR | BXor
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data PreOp = PrPrint | PrAt | PrBitNot | PrClone | PrNegate | PrNot | PrPos |
   PrSuppress | PrIncr | PrDecr
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data PostOp = PoIncr | PoDecr
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data IncOrReq = Inc | Req
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data OnceOrNot = Once | NotOnce
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data TernaryIf = TernaryIf {
   ternaryIfCond :: Expr,
@@ -150,14 +151,14 @@ data TernaryIf = TernaryIf {
   ternaryIfThen :: Maybe Expr,
   ternaryIfWS2  :: WS2,
   ternaryIfElse :: Expr}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data DubArrowMb = DubArrowMb (Maybe (Expr, WS2)) Expr
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data AnonFuncUse = AnonFuncUse {
   afuncUseArgs :: WSCap (NE.NonEmpty (WSCap FuncArg))}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data AnonFunc = AnonFunc {
   afuncWS    :: WS,
@@ -165,13 +166,13 @@ data AnonFunc = AnonFunc {
   afuncArgs  :: WSCap (ArgList FuncArg),
   afuncUse   :: Maybe AnonFuncUse,
   afuncBlock :: Block Stmt}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data FuncArg = FuncArg {
   funcArgType :: Maybe (Maybe Const, WS),
   funcArgRef  :: Maybe WS,
   funcArgVar  :: VarMbVal}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 --
 -- Stmt's
@@ -207,18 +208,18 @@ data Stmt =
   StmtUnset     (WSCap (NE.NonEmpty (WSCap LRVal))) StmtEnd   |
   StmtUse       (WSCap Use) StmtEnd     |
   StmtWhile     While
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 -- a block has {}'s, so one-liner's are not considered blocks
 -- and a (Block Stmt) is not the same as a StmtList tho it has the same ast
 data Block a = Block (IC.Intercal WS a)
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data Namespace = Namespace String
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data Use = Use String
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data Func = Func {
   funcWS    :: WS,
@@ -226,18 +227,18 @@ data Func = Func {
   funcName  :: String,
   funcArgs  :: WSCap (Either WS [WSCap FuncArg]),
   funcBlock :: Block Stmt}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data Interface = Interface {
   ifaceName    :: WSCap Const,
   ifaceExtends :: [WSCap Const],
   ifaceBlock   :: Block IfaceStmt}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data IfaceStmt =
   IfaceConst [WSCap (VarEqVal Const)] |
   IfaceFunc AbstrFunc
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data AbstrFunc = AbstrFunc {
   abstrFuncPre  :: [(String, WS)],
@@ -246,7 +247,7 @@ data AbstrFunc = AbstrFunc {
   abstrFuncArgs :: Either WS [WSCap FuncArg],
   abstrFuncWS   :: WS,
   abstrFuncStmtEnd :: StmtEnd}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data Class = Class {
   classPre     :: [(String, WS)],
@@ -254,13 +255,13 @@ data Class = Class {
   classExtends :: Maybe (WSCap Const),
   classImplements :: [WSCap Const],
   classBlock   :: Block ClassStmt}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data VarMbVal = VarMbVal Var (Maybe (WS2, Expr))
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data VarEqVal a = VarEqVal a WS2 Expr
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data ClassStmt =
   -- this list must have at least one element.. should i make a type for that?
@@ -271,71 +272,71 @@ data ClassStmt =
   CStmtCategory String |
   CStmtChildren String |
   CStmtAttribute String
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data DoWhile = DoWhile {
   doWhileBlock   :: WSCap BlockOrStmt,
   doWhileExpr    :: WSCap2 Expr,
   doWhileStmtEnd :: StmtEnd}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data Declare = Declare {
   declareHeader  :: WSCap (WSCap Const, WSCap Expr),
   declareStmtEnd :: StmtEnd}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data For = For {
   forHeader :: WSCap (ForPart, ForPart, ForPart),
   forBlock  :: BlockOrStmt}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data ForPart = ForPart (Either WS [WSCap Expr])
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data Foreach = Foreach {
   foreachHeader :: WSCap (WSCap Expr, WSCap DubArrowMb),
   foreachBlock  :: BlockOrStmt}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data If = If {
   -- And when ifAltColonSyntax is True, all the BlockOrStmts must be Blocks.
   ifAltColonSyntax :: Bool,
   ifAndIfelses :: IC.Intercal IfBlock (WS, Maybe WS),
   ifElse       :: Maybe (WS2, BlockOrStmt)}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data IfBlock = IfBlock {
   ifBlockExpr  :: WSCap2 Expr,
   ifBlockBlock :: BlockOrStmt}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data Switch = Switch {
   switchExpr  :: WSCap2 Expr,
   switchWS    :: WS,
   switchCases :: [Case]}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data Case = Case {
   caseExpr     :: Either WS (WSCap Expr),
   caseStmtList :: StmtList}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data Catch = Catch {
   catchHeader :: WSCap (WSCap Const, Expr),
   catchWS     :: WS,
   catchBlock  :: Block Stmt}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data While = While {
   whileExpr  :: WSCap2 Expr,
   whileBlock :: BlockOrStmt}
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data TopLevel = TopLevel String (Maybe (Either (WSCap Expr, StmtEnd) String))
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 data StmtEnd = StmtEndSemi | StmtEndClose TopLevel
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 type BlockOrStmt = Either Stmt (Block Stmt)
 

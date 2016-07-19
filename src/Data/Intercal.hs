@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
 module Data.Intercal where
 
@@ -10,6 +10,8 @@ import Data.Binary ()
 import Data.Data
 import Prelude hiding (concatMap, map)
 import qualified Prelude
+import GHC.Generics
+import Data.Aeson
 
 import Common
 import Parse
@@ -17,7 +19,7 @@ import Unparse
 import Text.PrettyPrint.GenericPretty
 
 data Intercal a b = Intercal a b (Intercal a b) | Interend a
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, Generic1, ToJSON, FromJSON)
 
 intercalParser :: Parser a -> Parser b -> Parser (Intercal a b)
 intercalParser a b = do

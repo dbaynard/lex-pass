@@ -1,15 +1,16 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric,DeriveAnyClass #-}
 
 module Lang.Php.Ast.Lex where
 
 import qualified Data.Set as Set
 import Text.PrettyPrint.GenericPretty
+import Data.Aeson
 
 import Lang.Php.Ast.Common
 
 data StrLit = StrLit String
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 instance Parse StrLit where
   parse = StrLit <$> (
@@ -46,7 +47,7 @@ backticksParser :: Parser String
 backticksParser = liftM2 (:) (char '`') (strLitRestParserCurly '`' False)
 
 data NumLit = NumLit String
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 instance Parse NumLit where
   -- could be tighter
@@ -61,7 +62,7 @@ instance Unparse NumLit where
   unparse (NumLit a) = a
 
 data HereDoc = HereDoc String
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 wsNoNLParser :: Parser String
 wsNoNLParser = many (satisfy (\ x -> isSpace x && x /= '\n'))

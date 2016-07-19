@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 
 module Lang.Php.Ast (
   module X,
@@ -10,6 +11,8 @@ import Control.Arrow
 import Control.Monad
 import Data.Binary.Generic ()
 import Data.Char
+import GHC.Generics
+import Data.Aeson
 
 import Common
 --import qualified Data.ByteString as BS
@@ -19,7 +22,7 @@ import Lang.Php.Ast.Lex as X
 import Lang.Php.Ast.Stmt as X
 
 data Ast = Ast TopLevel StmtList
-  deriving (Eq, Show, Typeable, Data)
+  deriving (Eq, Show, Typeable, Data, Generic, FromJSON, ToJSON)
 
 instance Unparse Ast where
   unparse (Ast t s) = unparse t ++ unparse s

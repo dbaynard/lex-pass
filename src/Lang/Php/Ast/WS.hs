@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -10,6 +10,7 @@ module Lang.Php.Ast.WS where
 import Data.Binary ()
 import Data.Data
 import Text.PrettyPrint.GenericPretty
+import Data.Aeson
 
 import Common
 import Lang.Php.Ast.LexWS
@@ -19,7 +20,7 @@ import Unparse
 -- WSElem
 
 data WSElem = WS String | LineComment Bool String | Comment String
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 instance Parse WSElem where
   parse = WS <$> many1 space <|>
@@ -68,7 +69,7 @@ data WSCap a = WSCap {
   wsCapMain :: a,
   wsCapPost :: WS}
   --deriving (Data, Eq, Functor, Generic, Show, Typeable)
-  deriving (Data, Eq, Generic, Show, Typeable)
+  deriving (Data, Eq, Generic, Show, Typeable, FromJSON, ToJSON)
 
 wsCapUnparser :: Unparser a -> Unparser (WSCap a)
 wsCapUnparser u (WSCap w1 a w2) = unparse w1 ++ u a ++ unparse w2

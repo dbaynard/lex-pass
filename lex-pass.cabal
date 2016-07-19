@@ -48,6 +48,7 @@ library
                        Unparse
                        Util
   build-depends:       base >= 4.7 && < 5
+                     , aeson
                      , binary
                      , binary-generic
                      , bytestring
