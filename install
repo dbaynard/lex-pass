@@ -4,4 +4,4 @@ set -e
 echo 'Detecting transformers...'
 (cd src; ./do-codegen)
 
-cabal install --enable-optimization=2 "$@"
+stack build "$@"
