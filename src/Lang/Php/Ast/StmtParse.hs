@@ -770,8 +770,8 @@ instance Parse Interface where
 
 instance Parse Namespace where
     parse = do
-    n <- identifierParser
-    return $ Namespace n
+        n <- identifierParser
+        return $ Namespace n
 
 instance Parse Use where
     parse = do

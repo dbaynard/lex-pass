@@ -1,3 +1,7 @@
+module Test.Hm (
+    module Test.Hm
+)   where
+
 import Control.Applicative hiding (Const)
 import Data.Tree
 --import PrettyPrint
