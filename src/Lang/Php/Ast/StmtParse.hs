@@ -126,10 +126,10 @@ valExtendMemb a ws = (tokArrowP >> do
   ws2 <- parse
   (memb, wsEnd) <- parse
   valExtend (ValLRVal $ LRValMemb a (ws, ws2) memb, wsEnd))
-		<|> (tokDubColonP >> do
-		  ws2 <- parse
-		  (memb, wsEnd) <- parse
-		  valExtend (ValLRVal $ LRValStaMemb a (ws, ws2) memb, wsEnd))
+        <|> (tokDubColonP >> do
+          ws2 <- parse
+          (memb, wsEnd) <- parse
+          valExtend (ValLRVal $ LRValStaMemb a (ws, ws2) memb, wsEnd))
 
 instance Parse (Memb, WS) where
   parse =
@@ -770,8 +770,8 @@ instance Parse Interface where
 
 instance Parse Namespace where
     parse = do
-	n <- identifierParser
-	return $ Namespace n
+    n <- identifierParser
+    return $ Namespace n
 
 instance Parse Use where
     parse = do

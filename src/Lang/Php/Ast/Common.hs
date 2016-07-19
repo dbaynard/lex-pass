@@ -19,7 +19,7 @@ import Data.Binary
 import Data.Binary.Generic
 import Data.Char
 import Data.Data hiding (Infix, Prefix)
-import Data.List
+import Data.List hiding (uncons)
 import Data.Maybe
 
 import Common
