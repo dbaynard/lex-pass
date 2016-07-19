@@ -1,9 +1,9 @@
 module Util where
 
 import Control.Arrow
-import Control.Monad.Error
+import Control.Monad.Except
 
-type CanErrStrIO a = ErrorT String IO a
+type CanErrStrIO a = ExceptT String IO a
 
 rePairRight :: ((a, b), c) -> (a, (b, c))
 rePairRight ((a, b), c) = (a, (b, c))

@@ -2,14 +2,12 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverlappingInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Lang.Php.Ast.WS where
 
-import Data.Binary
+import Data.Binary ()
 import Data.Data
 import Text.PrettyPrint.GenericPretty
 
@@ -52,7 +50,7 @@ type WS = [WSElem]
 toWsParser :: Parser a -> Parser (a, WS)
 toWsParser p = liftM2 (,) p parse
 
-instance Parse a => Parse (a, WS) where
+instance {-# OVERLAPPABLE #-} Parse a => Parse (a, WS) where
   parse = toWsParser parse
 
 -- WS2

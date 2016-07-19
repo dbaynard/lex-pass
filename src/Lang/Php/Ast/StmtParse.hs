@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 
 module Lang.Php.Ast.StmtParse where
 
@@ -172,7 +173,7 @@ lRValOrConstParser = do
 
 -- Expr
 
-instance Parse (Expr, WS) where
+instance {-# OVERLAPS #-} Parse (Expr, WS) where
   parse = buildExpressionParser exprParserTable simpleExprParser
 
 simpleExprParser :: Parser (Expr, WS)
@@ -200,7 +201,7 @@ simpleExprParser = assignOrRValParser
     first (ExprRef w . Right) <$> parse <|> do
       (e, wEnd) <- parse
       case e of
-        ExprNew _ _ _ -> return (ExprRef w (Left e), wEnd)
+        ExprNew{} -> return (ExprRef w (Left e), wEnd)
         _ -> fail "Expecting a Val or ExprNew."
   <|> liftM2 (,) (
     ExprStrLit <$> parse <|>
@@ -314,6 +315,16 @@ exprParserTable = [
 type ExprOpP = Parser ((Expr, WS) -> (Expr, WS))
 
 type ExprBinOpP = Parser ((Expr, WS) -> (Expr, WS) -> (Expr, WS))
+
+eptPrint :: ExprOpP
+eptAnd :: ExprBinOpP
+eptOr :: ExprBinOpP
+eptAndWd :: ExprBinOpP
+eptXorWd :: ExprBinOpP
+eptOrWd :: ExprBinOpP
+funcStartParser :: _ String () Identity (WS, Maybe WS)
+anonFuncContParser :: (WS, Maybe WS) -> _ String () Identity AnonFunc
+funcContParser :: (WS, Maybe WS) -> _ String () Identity Func
 
 preRep, postRep :: Parser (a -> a) -> Parser (a -> a)
 preRep p = (p >>= \ f -> (f .) <$> preRep p) <|> return id
@@ -485,7 +496,7 @@ simpleStmtParser =
   StmtDeclare <$> parse <|>
   StmtDoWhile <$> parse <|>
   liftM2 StmtEcho (tokEchoP >> sepBy1 parse tokCommaP) parse <|>
-  (try $ liftM2 StmtStatic (tokStaticP >> sepBy1 parse tokCommaP) parse) <|>
+  try (liftM2 StmtStatic (tokStaticP >> sepBy1 parse tokCommaP) parse) <|>
   funcParser <|>
   stmtExprParser <|>
   liftM2 StmtGlobal (tokGlobalP >> sepBy1 parse tokCommaP) parse <|>

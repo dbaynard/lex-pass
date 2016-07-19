@@ -2,19 +2,19 @@ module App (
     module App
 )   where
 
-import Control.Applicative
-import Control.Concurrent
-import Control.Monad
-import Control.Monad.Error
+import Control.Applicative ()
+import Control.Concurrent ()
+import Control.Monad ()
+import Control.Monad.Except
 import Data.Char
 import Data.List
 import Data.Maybe
 import System.Console.GetOpt
-import System.Directory
+import System.Directory ()
 import System.Environment
-import System.FilePath
+import System.FilePath ()
 import System.IO
-import System.Process
+import System.Process ()
 
 import CodeGen.Transf
 import qualified Config
@@ -26,6 +26,7 @@ import Util
 endSpan :: (a -> Bool) -> [a] -> ([a], [a])
 endSpan p = uncurry (flip (,)) . bothond reverse . span p . reverse
 
+wordWrap :: Int -> String -> [String]
 wordWrap _ [] = []
 wordWrap n s = a':wordWrap n b' where
   (a, b) = splitAt n s
@@ -34,7 +35,7 @@ wordWrap n s = a':wordWrap n b' where
     then (a, dropWhile isSpace b)
     else (aToLastWord, aLastWord ++ b)
 
-usage :: [Char] -> a
+usage :: String -> a
 usage err =
   error $ err ++ usageInfo header options ++
     "Transformers are:\n" ++ intercalate "\n" (sort $ map showTransf transfs)
@@ -45,7 +46,7 @@ usage err =
     "Options are:"]
   showTransf :: Transf -> String
   showTransf t = "" ++ transfName t ++ transfArgs t ++ "\n" ++
-    intercalate "\n" (zipWith (++) (repeat "  ") .
+    intercalate "\n" (map ("  " ++) .
     wordWrap 78 $ transfDoc t)
 
 showStRes :: CanErrStrIO (Bool, [String]) -> CanErrStrIO Bool
@@ -63,19 +64,21 @@ lookupTrans name = case filter ((== name) . transfName) transfs of
 transfOnFile :: Options -> Transf -> [String] -> FilePath -> FilePath ->
   Int -> Int -> CanErrStrIO Bool
 transfOnFile opts transf args dir file total cur =
-  showStRes $ (transfFunc transf) args opts dir file total cur
+  showStRes $ transfFunc transf args opts dir file total cur
 
 changeFiles :: Options -> (FilePath -> Int -> Int -> CanErrStrIO Bool) ->
   [FilePath] -> IO ()
 changeFiles opts f paths = taskPool (optNumCores opts) .
   map (\ (n, p) -> dieOnErrors $ f p (length paths) n) $ zip [1..] paths
 
+dieOnErrors :: Monad m => ExceptT String m a -> m ()
 dieOnErrors x = do
-  r <- runErrorT x
+  r <- runExceptT x
   case r of
     Left e -> error e
     Right _ -> return ()
 
+killInitialDotSlash :: String -> String
 killInitialDotSlash ('.':'/':rest) = killInitialDotSlash rest
 killInitialDotSlash rest = rest
 
@@ -94,7 +97,7 @@ main = do
         dir = fromMaybe "." $ optDir opts
         transf = lookupTrans transfName
       subPaths <- map killInitialDotSlash <$> if optFiles opts
-        then getContents >>= return . lines
+        then lines <$> getContents
         else Config.sourceFiles (transfTypes transf) dir
       let
         subPaths' = case optStartAtFile opts of
