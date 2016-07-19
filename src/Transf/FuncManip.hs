@@ -75,56 +75,104 @@ abstractMysql = modAll $ \case
 
 replaceApplWAssign :: String -> String -> Ast -> Transformed Ast
 replaceApplWAssign oldF newF = modAll $ \case
-  RFuncL ((== oldF) -> True) input _ _ _ -> Transformed{..}
+  RFuncL ((== oldF) -> True) input -> Transformed{..}
     where
         infoLines = [show oldF ++ show newF]
         transfResult = pure $ LToRAssign input newF
   _                                -> transfNothing
 
-pattern MysqlQuery query = ROnlyValFunc (Right (Const [] "mysql_query")) []
+pattern MysqlQuery query <- ROnlyValFunc (Right (Const _ "mysql_query")) _
     (Right
       [ WSCap
-        { wsCapPre = []
+        { wsCapPre = _
         , wsCapMain = query
-        , wsCapPost = []
+        , wsCapPost = _
         }
         ])
+    where
+        MysqlQuery query = ROnlyValFunc (Right (Const [] "mysql_query")) []
+            (Right
+              [ WSCap
+                { wsCapPre = []
+                , wsCapMain = query
+                , wsCapPost = []
+                }
+                ])
 
-pattern DoSQLQuery query = ROnlyValFunc (Right (Const [] "doSQL")) []
+pattern DoSQLQuery query <- ROnlyValFunc (Right (Const _ "doSQL")) _
     (Right
       [ WSCap
-        { wsCapPre = []
+        { wsCapPre = _
         , wsCapMain = query
-        , wsCapPost = []
+        , wsCapPost = _
         }
         , DatabaseName "db"
         , NoDisplaySQL
         ])
+    where
+        DoSQLQuery query = ROnlyValFunc (Right (Const [] "doSQL")) []
+            (Right
+              [ WSCap
+                { wsCapPre = []
+                , wsCapMain = query
+                , wsCapPost = []
+                }
+                , DatabaseName "db"
+                , NoDisplaySQL
+                ])
 
-pattern DatabaseName name = WSCap
-        { wsCapPre = [WS " "]
-        , wsCapMain = Left (ExprRVal (RValLRVal (LRValVar (DynConst [] (Var name [])))))
-        , wsCapPost = []
+pattern DatabaseName name <- WSCap
+        { wsCapPre = _
+        , wsCapMain = Left (ExprRVal (RValLRVal (LRValVar (DynConst _ (Var name _)))))
+        , wsCapPost = _
         }
+    where
+        DatabaseName name = WSCap
+            { wsCapPre = [WS " "]
+            , wsCapMain = Left (ExprRVal (RValLRVal (LRValVar (DynConst [] (Var name [])))))
+            , wsCapPost = []
+            }
 
-pattern NoDisplaySQL = WSCap
-        { wsCapPre = [WS " "]
+pattern NoDisplaySQL <- WSCap
+        { wsCapPre = _
         , wsCapMain = Left (ExprStrLit (StrLit "\"no\""))
-        , wsCapPost = [WS " "]
+        , wsCapPost = _
         }
+    where
+        NoDisplaySQL = WSCap
+            { wsCapPre = [WS " "]
+            , wsCapMain = Left (ExprStrLit (StrLit "\"no\""))
+            , wsCapPost = [WS " "]
+            }
 
-pattern LToRAssign funL funR = ROnlyValFunc
+pattern LToRAssign funL funR <- ROnlyValFunc
+          (Left
+             (LRValMemb (RValLRVal (LRValVar (DynConst _ (Var funL _))))
+                _ (MembStr funR)))
+          _ _
+    where
+        LToRAssign funL funR = ROnlyValFunc
           (Left
              (LRValMemb (RValLRVal (LRValVar (DynConst [] (Var funL []))))
                 ([], []) (MembStr funR)))
           [] (Left [])
 
-pattern RFuncL funR input pre1 pre post = ROnlyValFunc (Right (Const [] funR)) pre1
+pattern RFuncL funR input <- ROnlyValFunc (Right (Const [] funR)) _
           (Right
              [ WSCap
-                { wsCapPre = pre
+                { wsCapPre = _
                 , wsCapMain =
                       Left
                         (ExprRVal (RValLRVal (LRValVar (DynConst [] (Var input [])))))
-                , wsCapPost = post
+                , wsCapPost = _
+                }])
+    where
+        RFuncL funR input = ROnlyValFunc (Right (Const [] funR)) []
+          (Right
+             [ WSCap
+                { wsCapPre = []
+                , wsCapMain =
+                      Left
+                        (ExprRVal (RValLRVal (LRValVar (DynConst [] (Var input [])))))
+                , wsCapPost = []
                 }])
