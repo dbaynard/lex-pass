@@ -35,7 +35,7 @@ executable lex-pass
       , parsec
       , process
       , syb
-    ghc-options: -threaded
+    ghc-options: -threaded -O2
 
 executable lex-pass-test
     if !flag(test-only)
