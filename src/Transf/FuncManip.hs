@@ -1,5 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE PatternSynonyms, ViewPatterns #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Transf.FuncManip where
@@ -22,6 +22,9 @@ transfs = [
   "abstract-mysql" -:- ftype -?-
   "Replace all calls to mysql_query with calls to doSQL. Print list of calls"
   -=- argless (lexPass abstractMysql),
+  "replace-appl-w-assign <old-func-name> <new-func-name>" -:- ftype -?-
+  "Rename a function and replace with assignment using ->."
+  -=- (\ [oldF, newF] -> lexPass $ replaceApplWAssign oldF newF),
   "make-public-explicit" -:- ftype -?-
   "Add \"public\" to class functions without an explicit access keyword."
   -=- (\ [] -> lexPass makePublicExplicit)]
@@ -70,6 +73,14 @@ abstractMysql = modAll $ \case
       transfResult = pure $ DoSQLQuery query
   _                -> transfNothing
 
+replaceApplWAssign :: String -> String -> Ast -> Transformed Ast
+replaceApplWAssign oldF newF = modAll $ \case
+  RFuncL ((== oldF) -> True) input _ _ _ -> Transformed{..}
+    where
+        infoLines = [show oldF ++ show newF]
+        transfResult = pure $ LToRAssign input newF
+  _                                -> transfNothing
+
 pattern MysqlQuery query = ROnlyValFunc (Right (Const [] "mysql_query")) []
     (Right
       [ WSCap
@@ -101,3 +112,19 @@ pattern NoDisplaySQL = WSCap
         , wsCapMain = Left (ExprStrLit (StrLit "\"no\""))
         , wsCapPost = [WS " "]
         }
+
+pattern LToRAssign funL funR = ROnlyValFunc
+          (Left
+             (LRValMemb (RValLRVal (LRValVar (DynConst [] (Var funL []))))
+                ([], []) (MembStr funR)))
+          [] (Left [])
+
+pattern RFuncL funR input pre1 pre post = ROnlyValFunc (Right (Const [] funR)) pre1
+          (Right
+             [ WSCap
+                { wsCapPre = pre
+                , wsCapMain =
+                      Left
+                        (ExprRVal (RValLRVal (LRValVar (DynConst [] (Var input [])))))
+                , wsCapPost = post
+                }])
