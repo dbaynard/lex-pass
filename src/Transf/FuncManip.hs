@@ -25,6 +25,9 @@ transfs = [
   "replace-appl-w-assign <old-func-name> <new-func-name>" -:- ftype -?-
   "Rename a function and replace with assignment using ->."
   -=- (\ [oldF, newF] -> lexPass $ replaceApplWAssign oldF newF),
+  "replace-appl-w-pdo-assign <old-func-name> <new-func-name> <parameter>" -:- ftype -?-
+  "Rename a function and replace with assignment using ->. Add PDO-prefixed parameter."
+  -=- (\ [oldF, newF, par] -> lexPass $ replaceApplWPDOAssign oldF newF par),
   "make-public-explicit" -:- ftype -?-
   "Add \"public\" to class functions without an explicit access keyword."
   -=- (\ [] -> lexPass makePublicExplicit)]
@@ -79,6 +82,14 @@ replaceApplWAssign oldF newF = modAll $ \case
     where
         infoLines = [show oldF ++ show newF]
         transfResult = pure $ LToRAssign input newF
+  _                                -> transfNothing
+
+replaceApplWPDOAssign :: String -> String -> String -> Ast -> Transformed Ast
+replaceApplWPDOAssign oldF newF par = modAll $ \case
+  RFuncL ((== oldF) -> True) input -> Transformed{..}
+    where
+        infoLines = [oldF ++ newF ++ "(PDO::" ++ par ++ ")"]
+        transfResult = pure $ LToRPDOAssign input newF par
   _                                -> transfNothing
 
 pattern MysqlQuery query <- ROnlyValFunc (Right (Const _ "mysql_query")) _
@@ -157,6 +168,18 @@ pattern LToRAssign funL funR <- ROnlyValFunc
                 ([], []) (MembStr funR)))
           [] (Left [])
 
+pattern LToRPDOAssign funL funR attr <- ROnlyValFunc
+          (Left
+             (LRValMemb (RValLRVal (LRValVar (DynConst _ (Var funL _))))
+                _ (MembStr funR)))
+          _ (Right [AssignAttr "PDO" attr])
+    where
+        LToRPDOAssign funL funR attr = ROnlyValFunc
+          (Left
+             (LRValMemb (RValLRVal (LRValVar (DynConst [] (Var funL []))))
+                ([], []) (MembStr funR)))
+          [] (Right [AssignAttr "PDO" attr])
+
 pattern RFuncL funR input <- ROnlyValFunc (Right (Const [] funR)) _
           (Right
              [ WSCap
@@ -176,3 +199,15 @@ pattern RFuncL funR input <- ROnlyValFunc (Right (Const [] funR)) _
                         (ExprRVal (RValLRVal (LRValVar (DynConst [] (Var input [])))))
                 , wsCapPost = []
                 }])
+
+pattern AssignAttr pre attr <- WSCap
+              { wsCapPre = _
+              , wsCapMain = Left (ExprRVal (RValROnlyVal (ROnlyValConst (Const [(pre,_)] attr))))
+              , wsCapPost = _
+              }
+    where
+        AssignAttr pre attr =
+            WSCap { wsCapPre = []
+                  , wsCapMain = Left (ExprRVal (RValROnlyVal (ROnlyValConst (Const [(pre,([],[]))] attr))))
+                  , wsCapPost = []
+                  }
