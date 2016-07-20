@@ -22,6 +22,9 @@ transfs = [
   "abstract-mysql" -:- ftype -?-
   "Replace all calls to mysql_query with calls to doSQL. Print list of calls"
   -=- argless (lexPass abstractMysql),
+  "dont-die" -:- ftype -?-
+  "Strip or die from doSQL queries."
+  -=- argless (lexPass noDie),
   "replace-appl-w-assign <old-func-name> <new-func-name>" -:- ftype -?-
   "Rename a function and replace with assignment using ->."
   -=- (\ [oldF, newF] -> lexPass $ replaceApplWAssign oldF newF),
@@ -90,6 +93,18 @@ replaceApplWPDOAssign oldF newF par = modAll $ \case
     where
         infoLines = [oldF ++ newF ++ "(PDO::" ++ par ++ ")"]
         transfResult = pure $ LToRPDOAssign input newF par
+  _                                -> transfNothing
+
+noDie :: Ast -> Transformed Ast
+noDie = modAll $ \case
+  DoOrDie res query -> Transformed{..}
+    where
+        infoLines = [res ++ "->" ++ show query]
+        transfResult = pure $ DoDontDie res query
+  DoOrDieNoAsn query -> Transformed{..}
+    where
+        infoLines = [show query]
+        transfResult = pure $ WrappedSQLQuery query
   _                                -> transfNothing
 
 pattern MysqlQuery query <- ROnlyValFunc (Right (Const _ "mysql_query")) _
@@ -211,3 +226,72 @@ pattern AssignAttr pre attr <- WSCap
                   , wsCapMain = Left (ExprRVal (RValROnlyVal (ROnlyValConst (Const [(pre,([],[]))] attr))))
                   , wsCapPost = []
                   }
+
+pattern DoOrDie res query <- StmtExpr (ExprAssign
+           _
+           (LValLRVal (LRValVar (DynConst [] (Var res []))))
+           _
+           (OrDie query)
+           ) _ StmtEndSemi
+    where
+        DoOrDie res query = StmtExpr (ExprAssign
+           Nothing
+           (LValLRVal (LRValVar (DynConst [] (Var res []))))
+           ([WS " "],[WS " "])
+           (OrDie query)
+           ) [] StmtEndSemi
+
+pattern DoDontDie res query <- StmtExpr (ExprAssign
+           _
+           (LValLRVal (LRValVar (DynConst _ (Var res _))))
+           _
+           (ExprRVal (RValROnlyVal (DoSQLQuery query)))
+           ) [] StmtEndSemi
+    where
+        DoDontDie res query = StmtExpr (ExprAssign
+           Nothing
+           (LValLRVal (LRValVar (DynConst [] (Var res []))))
+           ([WS " "],[WS " "])
+           (ExprRVal (RValROnlyVal (DoSQLQuery query)))
+           ) [] StmtEndSemi
+
+pattern DoOrDieNoAsn query = StmtExpr (OrDie query) [] StmtEndSemi
+
+pattern WrappedSQLQuery query = StmtExpr (ExprRVal (RValROnlyVal (DoSQLQuery query))) [] StmtEndSemi
+
+pattern OrDie query <-
+        ExprBinOp BOrWd (ExprRVal (RValROnlyVal (DoSQLQuery query))) _
+          (ExprExit _
+             (Just
+                (_,
+                 Right
+                   WSCap{wsCapPre = _,
+                         wsCapMain =
+                           ExprBinOp _ _ _
+                             (ExprRVal
+                                (RValROnlyVal
+                                   (ROnlyValFunc (Right (Const [] "mysql_error")) _ _))),
+                         wsCapPost = _})))
+    where
+        OrDie query = ExprBinOp
+                BOrWd
+                (ExprRVal (RValROnlyVal (DoSQLQuery query)))
+                ([WS " \n     "], [WS " "])
+                (ExprExit False
+                   (Just
+                      ([WS " "], Right
+                                   WSCap
+                                     { wsCapPre = []
+                                     , wsCapMain = ExprBinOp
+                                                     (BByable BConcat)
+                                                     (ExprStrLit
+                                                        (StrLit "\"Unexpected MySQL Error: \""))
+                                                     ([WS " "], [WS " "])
+                                                     (ExprRVal
+                                                        (RValROnlyVal
+                                                           (ROnlyValFunc
+                                                              (Right (Const [] "mysql_error"))
+                                                              []
+                                                              (Left []))))
+                                     , wsCapPost = []
+                                     })))
