@@ -1,5 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE PatternSynonyms, ViewPatterns #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Transf.FuncManip where
@@ -22,6 +22,15 @@ transfs = [
   "abstract-mysql" -:- ftype -?-
   "Replace all calls to mysql_query with calls to doSQL. Print list of calls"
   -=- argless (lexPass abstractMysql),
+  "dont-die" -:- ftype -?-
+  "Strip or die from doSQL queries."
+  -=- argless (lexPass noDie),
+  "replace-appl-w-assign <old-func-name> <new-func-name>" -:- ftype -?-
+  "Rename a function and replace with assignment using ->."
+  -=- (\ [oldF, newF] -> lexPass $ replaceApplWAssign oldF newF),
+  "replace-appl-w-pdo-assign <old-func-name> <new-func-name> <parameter>" -:- ftype -?-
+  "Rename a function and replace with assignment using ->. Add PDO-prefixed parameter."
+  -=- (\ [oldF, newF, par] -> lexPass $ replaceApplWPDOAssign oldF newF par),
   "make-public-explicit" -:- ftype -?-
   "Add \"public\" to class functions without an explicit access keyword."
   -=- (\ [] -> lexPass makePublicExplicit)]
@@ -70,34 +79,219 @@ abstractMysql = modAll $ \case
       transfResult = pure $ DoSQLQuery query
   _                -> transfNothing
 
-pattern MysqlQuery query = ROnlyValFunc (Right (Const [] "mysql_query")) []
+replaceApplWAssign :: String -> String -> Ast -> Transformed Ast
+replaceApplWAssign oldF newF = modAll $ \case
+  RFuncL ((== oldF) -> True) input -> Transformed{..}
+    where
+        infoLines = [show oldF ++ show newF]
+        transfResult = pure $ LToRAssign input newF
+  _                                -> transfNothing
+
+replaceApplWPDOAssign :: String -> String -> String -> Ast -> Transformed Ast
+replaceApplWPDOAssign oldF newF par = modAll $ \case
+  RFuncL ((== oldF) -> True) input -> Transformed{..}
+    where
+        infoLines = [oldF ++ newF ++ "(PDO::" ++ par ++ ")"]
+        transfResult = pure $ LToRPDOAssign input newF par
+  _                                -> transfNothing
+
+noDie :: Ast -> Transformed Ast
+noDie = modAll $ \case
+  DoOrDie res query -> Transformed{..}
+    where
+        infoLines = [res ++ "->" ++ show query]
+        transfResult = pure $ DoDontDie res query
+  DoOrDieNoAsn query -> Transformed{..}
+    where
+        infoLines = [show query]
+        transfResult = pure $ WrappedSQLQuery query
+  _                                -> transfNothing
+
+pattern MysqlQuery query <- ROnlyValFunc (Right (Const _ "mysql_query")) _
     (Right
       [ WSCap
-        { wsCapPre = []
+        { wsCapPre = _
         , wsCapMain = query
-        , wsCapPost = []
+        , wsCapPost = _
         }
         ])
+    where
+        MysqlQuery query = ROnlyValFunc (Right (Const [] "mysql_query")) []
+            (Right
+              [ WSCap
+                { wsCapPre = []
+                , wsCapMain = query
+                , wsCapPost = []
+                }
+                ])
 
-pattern DoSQLQuery query = ROnlyValFunc (Right (Const [] "doSQL")) []
+pattern DoSQLQuery query <- ROnlyValFunc (Right (Const _ "doSQL")) _
     (Right
       [ WSCap
-        { wsCapPre = []
+        { wsCapPre = _
         , wsCapMain = query
-        , wsCapPost = []
+        , wsCapPost = _
         }
         , DatabaseName "db"
         , NoDisplaySQL
         ])
+    where
+        DoSQLQuery query = ROnlyValFunc (Right (Const [] "doSQL")) []
+            (Right
+              [ WSCap
+                { wsCapPre = []
+                , wsCapMain = query
+                , wsCapPost = []
+                }
+                , DatabaseName "db"
+                , NoDisplaySQL
+                ])
 
-pattern DatabaseName name = WSCap
-        { wsCapPre = [WS " "]
-        , wsCapMain = Left (ExprRVal (RValLRVal (LRValVar (DynConst [] (Var name [])))))
-        , wsCapPost = []
+pattern DatabaseName name <- WSCap
+        { wsCapPre = _
+        , wsCapMain = Left (ExprRVal (RValLRVal (LRValVar (DynConst _ (Var name _)))))
+        , wsCapPost = _
         }
+    where
+        DatabaseName name = WSCap
+            { wsCapPre = [WS " "]
+            , wsCapMain = Left (ExprRVal (RValLRVal (LRValVar (DynConst [] (Var name [])))))
+            , wsCapPost = []
+            }
 
-pattern NoDisplaySQL = WSCap
-        { wsCapPre = [WS " "]
+pattern NoDisplaySQL <- WSCap
+        { wsCapPre = _
         , wsCapMain = Left (ExprStrLit (StrLit "\"no\""))
-        , wsCapPost = [WS " "]
+        , wsCapPost = _
         }
+    where
+        NoDisplaySQL = WSCap
+            { wsCapPre = [WS " "]
+            , wsCapMain = Left (ExprStrLit (StrLit "\"no\""))
+            , wsCapPost = [WS " "]
+            }
+
+pattern LToRAssign funL funR <- ROnlyValFunc
+          (Left
+             (LRValMemb (RValLRVal (LRValVar (DynConst _ (Var funL _))))
+                _ (MembStr funR)))
+          _ _
+    where
+        LToRAssign funL funR = ROnlyValFunc
+          (Left
+             (LRValMemb (RValLRVal (LRValVar (DynConst [] (Var funL []))))
+                ([], []) (MembStr funR)))
+          [] (Left [])
+
+pattern LToRPDOAssign funL funR attr <- ROnlyValFunc
+          (Left
+             (LRValMemb (RValLRVal (LRValVar (DynConst _ (Var funL _))))
+                _ (MembStr funR)))
+          _ (Right [AssignAttr "PDO" attr])
+    where
+        LToRPDOAssign funL funR attr = ROnlyValFunc
+          (Left
+             (LRValMemb (RValLRVal (LRValVar (DynConst [] (Var funL []))))
+                ([], []) (MembStr funR)))
+          [] (Right [AssignAttr "PDO" attr])
+
+pattern RFuncL funR input <- ROnlyValFunc (Right (Const [] funR)) _
+          (Right
+             [ WSCap
+                { wsCapPre = _
+                , wsCapMain =
+                      Left
+                        (ExprRVal (RValLRVal (LRValVar (DynConst [] (Var input [])))))
+                , wsCapPost = _
+                }])
+    where
+        RFuncL funR input = ROnlyValFunc (Right (Const [] funR)) []
+          (Right
+             [ WSCap
+                { wsCapPre = []
+                , wsCapMain =
+                      Left
+                        (ExprRVal (RValLRVal (LRValVar (DynConst [] (Var input [])))))
+                , wsCapPost = []
+                }])
+
+pattern AssignAttr pre attr <- WSCap
+              { wsCapPre = _
+              , wsCapMain = Left (ExprRVal (RValROnlyVal (ROnlyValConst (Const [(pre,_)] attr))))
+              , wsCapPost = _
+              }
+    where
+        AssignAttr pre attr =
+            WSCap { wsCapPre = []
+                  , wsCapMain = Left (ExprRVal (RValROnlyVal (ROnlyValConst (Const [(pre,([],[]))] attr))))
+                  , wsCapPost = []
+                  }
+
+pattern DoOrDie res query <- StmtExpr (ExprAssign
+           _
+           (LValLRVal (LRValVar (DynConst [] (Var res []))))
+           _
+           (OrDie query)
+           ) _ StmtEndSemi
+    where
+        DoOrDie res query = StmtExpr (ExprAssign
+           Nothing
+           (LValLRVal (LRValVar (DynConst [] (Var res []))))
+           ([WS " "],[WS " "])
+           (OrDie query)
+           ) [] StmtEndSemi
+
+pattern DoDontDie res query <- StmtExpr (ExprAssign
+           _
+           (LValLRVal (LRValVar (DynConst _ (Var res _))))
+           _
+           (ExprRVal (RValROnlyVal (DoSQLQuery query)))
+           ) [] StmtEndSemi
+    where
+        DoDontDie res query = StmtExpr (ExprAssign
+           Nothing
+           (LValLRVal (LRValVar (DynConst [] (Var res []))))
+           ([WS " "],[WS " "])
+           (ExprRVal (RValROnlyVal (DoSQLQuery query)))
+           ) [] StmtEndSemi
+
+pattern DoOrDieNoAsn query = StmtExpr (OrDie query) [] StmtEndSemi
+
+pattern WrappedSQLQuery query = StmtExpr (ExprRVal (RValROnlyVal (DoSQLQuery query))) [] StmtEndSemi
+
+pattern OrDie query <-
+        ExprBinOp BOrWd (ExprRVal (RValROnlyVal (DoSQLQuery query))) _
+          (ExprExit _
+             (Just
+                (_,
+                 Right
+                   WSCap{wsCapPre = _,
+                         wsCapMain =
+                           ExprBinOp _ _ _
+                             (ExprRVal
+                                (RValROnlyVal
+                                   (ROnlyValFunc (Right (Const [] "mysql_error")) _ _))),
+                         wsCapPost = _})))
+    where
+        OrDie query = ExprBinOp
+                BOrWd
+                (ExprRVal (RValROnlyVal (DoSQLQuery query)))
+                ([WS " \n     "], [WS " "])
+                (ExprExit False
+                   (Just
+                      ([WS " "], Right
+                                   WSCap
+                                     { wsCapPre = []
+                                     , wsCapMain = ExprBinOp
+                                                     (BByable BConcat)
+                                                     (ExprStrLit
+                                                        (StrLit "\"Unexpected MySQL Error: \""))
+                                                     ([WS " "], [WS " "])
+                                                     (ExprRVal
+                                                        (RValROnlyVal
+                                                           (ROnlyValFunc
+                                                              (Right (Const [] "mysql_error"))
+                                                              []
+                                                              (Left []))))
+                                     , wsCapPost = []
+                                     })))
