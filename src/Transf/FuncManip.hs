@@ -28,6 +28,9 @@ transfs = [
   "replace-appl-w-assign <old-func-name> <new-func-name>" -:- ftype -?-
   "Rename a function and replace with assignment using ->."
   -=- (\ [oldF, newF] -> lexPass $ replaceApplWAssign oldF newF),
+  "replace-func-w-method <old-func-name> <new-func-name> <object>" -:- ftype -?-
+  "Rename a function and replace with assignment using ->, from the parameter."
+  -=- (\ [oldF, newF, obj] -> lexPass $ replaceFunctWMethod oldF newF obj),
   "replace-appl-w-pdo-assign <old-func-name> <new-func-name> <parameter>" -:- ftype -?-
   "Rename a function and replace with assignment using ->. Add PDO-prefixed parameter."
   -=- (\ [oldF, newF, par] -> lexPass $ replaceApplWPDOAssign oldF newF par),
@@ -93,6 +96,14 @@ replaceApplWPDOAssign oldF newF par = modAll $ \case
     where
         infoLines = [oldF ++ newF ++ "(PDO::" ++ par ++ ")"]
         transfResult = pure $ LToRPDOAssign input newF par
+  _                                -> transfNothing
+
+replaceFunctWMethod :: String -> String -> String -> Ast -> Transformed Ast
+replaceFunctWMethod oldF newF obj = modAll $ \case
+  RFuncLGen ((== oldF) -> True) input -> Transformed{..}
+    where
+        infoLines = [oldF ++ " => " ++ obj ++ "->"++ newF]
+        transfResult = pure $ LToRAssign obj newF (Right [SinglePar input])
   _                                -> transfNothing
 
 noDie :: Ast -> Transformed Ast
