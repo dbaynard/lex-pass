@@ -28,6 +28,9 @@ transfs = [
   "replace-appl-w-assign <old-func-name> <new-func-name>" -:- ftype -?-
   "Rename a function and replace with assignment using ->."
   -=- (\ [oldF, newF] -> lexPass $ replaceApplWAssign oldF newF),
+  "extend-1-par-2 <func-name> <new-par>" -:- ftype -?-
+  "Add a 2nd parameter to single parameter function."
+  -=- (\ [fun, par] -> lexPass $ extend1to2 fun par),
   "replace-func-w-method <old-func-name> <new-func-name> <object>" -:- ftype -?-
   "Rename a function and replace with assignment using ->, from the parameter."
   -=- (\ [oldF, newF, obj] -> lexPass $ replaceFunctWMethod oldF newF obj),
@@ -114,6 +117,17 @@ noDie = modAll $ \case
         transfResult = pure $ WrappedSQLQuery query
   _                                -> transfNothing
 
+extend1to2 :: String -> String -> Ast -> Transformed Ast
+extend1to2 match par2 = modAll $ \case
+  RFuncL ((== match) -> True) par1 -> Transformed{..}
+    where
+        infoLines = []
+        transfResult = pure $ ROnlyVal match
+                (Right [ SimplePar par1
+                       , SimplePar par2
+                       ])
+  _                                -> transfNothing
+  
 pattern SimplePar par = SinglePar (SimpleName par)
 
 pattern SinglePar query <- WSCap
