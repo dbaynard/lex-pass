@@ -40,10 +40,8 @@ transfs = [
 
 renameFunc :: String -> String -> Ast -> Transformed Ast
 renameFunc oldF newF = modAll $ \ a -> case a of
-  ROnlyValFunc (Right (Const [] f)) w args ->
-    if f == oldF
-      then pure $ ROnlyValFunc (Right $ Const [] newF) w args
-      else transfNothing
+  ROnlyVal ((== oldF) -> True) args ->
+      pure $ ROnlyVal newF args
   _ -> transfNothing
 
 getAllDefdFuncs :: Ast -> Transformed Ast
@@ -58,10 +56,8 @@ getAllDefdFuncs = modAll $ \ stmt -> case stmt of
 
 killFuncArg :: String -> Int -> Ast -> Transformed Ast
 killFuncArg f n = modAll $ \ a -> case a of
-  ROnlyValFunc c@(Right (Const [] f')) w (Right args) ->
-    if f' == f
-      then pure $ ROnlyValFunc c w (Right $ take (n - 1) args ++ drop n args)
-      else transfNothing
+  ROnlyVal ((== f) -> True) (Right args) ->
+      pure $ ROnlyVal f (Right $ take (n - 1) args ++ drop n args)
   _ -> transfNothing
 
 isAccessKeyword :: String -> Bool
@@ -118,6 +114,8 @@ noDie = modAll $ \case
         transfResult = pure $ WrappedSQLQuery query
   _                                -> transfNothing
 
+pattern SimplePar par = SinglePar (SimpleName par)
+
 pattern SinglePar query <- WSCap
                     { wsCapPre = _
                     , wsCapMain = query
@@ -130,25 +128,14 @@ pattern SinglePar query <- WSCap
             , wsCapPost = []
             }
 
-pattern MysqlQuery query <- ROnlyValFunc (Right (Const _ "mysql_query")) _
-    (Right [ SinglePar query ])
-    where
-        MysqlQuery query = ROnlyValFunc (Right (Const [] "mysql_query")) []
-            (Right [ SinglePar query ])
+pattern MysqlQuery query = ROnlyVal "mysql_query" (Right [ SinglePar query ])
 
-pattern DoSQLQuery query <- ROnlyValFunc (Right (Const _ "doSQL")) _
+pattern DoSQLQuery query = ROnlyVal "doSQL"
     (Right
         [ SinglePar query
-        , SinglePar (SimpleName "db")
+        , SimplePar "db"
         , NoDisplaySQL
         ])
-    where
-        DoSQLQuery query = ROnlyValFunc (Right (Const [] "doSQL")) []
-            (Right
-                [ SinglePar query
-                , SinglePar (SimpleName "db")
-                , NoDisplaySQL
-                ])
 
 pattern SimpleName name <- Left (ExprRVal (RValLRVal (LRValVar (DynConst _ (Var name _)))))
     where
@@ -172,11 +159,11 @@ pattern LToRAssign funL funR vars <- ROnlyValFunc
                 ([], []) (MembStr funR)))
           [] vars
 
-pattern RFuncLGen funR cont <- ROnlyValFunc (Right (Const [] funR)) _
+pattern ROnlyVal funR par <- ROnlyValFunc (Right (Const _ funR)) _ par
+    where ROnlyVal funR par = ROnlyValFunc (Right (Const [] funR)) [] par
+
+pattern RFuncLGen funR cont = ROnlyVal funR
           (Right [ SinglePar cont ] )
-    where
-        RFuncLGen funR cont = ROnlyValFunc (Right (Const [] funR)) []
-          (Right [ SinglePar cont ])
 
 pattern RFuncL funR input = RFuncLGen funR (SimpleName input)
 
@@ -225,7 +212,7 @@ pattern OrDie query <-
                            (ExprBinOp _ _ _
                              (ExprRVal
                                 (RValROnlyVal
-                                   (ROnlyValFunc (Right (Const [] "mysql_error")) _ _)))
+                                   (ROnlyVal "mysql_error" _)))
                        )))))
     where
         OrDie query = ExprBinOp
@@ -242,8 +229,5 @@ pattern OrDie query <-
                                          ([WS " "], [WS " "])
                                          (ExprRVal
                                             (RValROnlyVal
-                                               (ROnlyValFunc
-                                                  (Right (Const [] "mysql_error"))
-                                                  []
-                                                  (Left []))))
+                                               (ROnlyVal "mysql_error" (Left []))))
                                      )))))
