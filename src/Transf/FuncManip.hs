@@ -28,9 +28,9 @@ transfs = [
   "replace-appl-w-assign <old-func-name> <new-func-name>" -:- ftype -?-
   "Rename a function and replace with assignment using ->."
   -=- (\ [oldF, newF] -> lexPass $ replaceApplWAssign oldF newF),
-  "extend-1-par-2 <func-name> <new-par>" -:- ftype -?-
-  "Add a 2nd parameter to single parameter function."
-  -=- (\ [fun, par] -> lexPass $ extend1to2 fun par),
+  "extend-pars-1 <func-name> <new-par>" -:- ftype -?-
+  "Add a n+1th parameter to n parameter function."
+  -=- (\ [fun, par] -> lexPass $ extendArgs fun par),
   "replace-func-w-method <old-func-name> <new-func-name> <object>" -:- ftype -?-
   "Rename a function and replace with assignment using ->, from the parameter."
   -=- (\ [oldF, newF, obj] -> lexPass $ replaceFunctWMethod oldF newF obj),
@@ -117,15 +117,13 @@ noDie = modAll $ \case
         transfResult = pure $ WrappedSQLQuery query
   _                                -> transfNothing
 
-extend1to2 :: String -> String -> Ast -> Transformed Ast
-extend1to2 match par2 = modAll $ \case
-  RFuncL ((== match) -> True) par1 -> Transformed{..}
+extendArgs :: String -> String -> Ast -> Transformed Ast
+extendArgs match parNext = modAll $ \case
+  RFuncLGenArgs ((== match) -> True) pars -> Transformed{..}
     where
         infoLines = []
         transfResult = pure $ ROnlyVal match
-                (Right [ SimplePar par1
-                       , SimplePar par2
-                       ])
+                (Right $ pars ++ [ SimplePar parNext ])
   _                                -> transfNothing
   
 pattern SimplePar par = SinglePar (SimpleName par)
@@ -176,8 +174,9 @@ pattern LToRAssign funL funR vars <- ROnlyValFunc
 pattern ROnlyVal funR par <- ROnlyValFunc (Right (Const _ funR)) _ par
     where ROnlyVal funR par = ROnlyValFunc (Right (Const [] funR)) [] par
 
-pattern RFuncLGen funR cont = ROnlyVal funR
-          (Right [ SinglePar cont ] )
+pattern RFuncLGenArgs funR args = ROnlyVal funR (Right args)
+
+pattern RFuncLGen funR cont = RFuncLGenArgs funR [ SinglePar cont ] 
 
 pattern RFuncL funR input = RFuncLGen funR (SimpleName input)
 
